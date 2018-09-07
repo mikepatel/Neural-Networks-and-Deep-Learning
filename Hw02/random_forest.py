@@ -1,7 +1,9 @@
-#! /usr/bin/env python3
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# File: random_forest.py
+# Author: mrpatel5 <mrpatel5@ncsu.edu>
 
 # Michael Patel
-# mrpatel5
 # ECE 542
 # Fall 2018
 # Hw02
@@ -26,31 +28,38 @@ from sklearn.ensemble import RandomForestClassifier
 import numpy as np
 import pandas as pd
 
+
 ###############################################################################
-# load dataset
-mnist = fetch_mldata("MNIST original")
-train_images, test_images, train_labels, test_labels = train_test_split(
-    mnist.data, mnist.target, test_size=1/7.0, random_state=0
-)
+def main():
+    # load dataset
+    mnist = fetch_mldata("MNIST original")
+    train_images, test_images, train_labels, test_labels = train_test_split(
+        mnist.data, mnist.target, test_size=1/7.0, random_state=0
+    )
 
-# explore data
-#print(train_labels[0:5])
+    # explore data
+    #print(train_labels[0:5])
 
-# instantiate model
-rf = RandomForestClassifier()
+    # instantiate model
+    rf = RandomForestClassifier()
 
-# training
-rf.fit(train_images, train_labels)
+    # training
+    rf.fit(train_images, train_labels)
 
-# predictions
-predictions = rf.predict_proba(test_images)  # prob for each class label
-predictions = np.round(predictions)  # push to 0 or 1
-predictions = predictions.astype(int)
-#print(predictions[0:5])
+    # predictions
+    predictions = rf.predict_proba(test_images)  # prob for each class label
+    predictions = np.round(predictions)  # push to 0 or 1
+    predictions = predictions.astype(int)
+    #print(predictions[0:5])
 
-# measuring model performance
-accuracy = rf.score(test_images, test_labels)
+    # measuring model performance
+    accuracy = rf.score(test_images, test_labels)
 
-# save predictions to csv
-df = pd.DataFrame(predictions)
-df.to_csv("rf.csv", header=None, index=None)
+    # save predictions to csv
+    df = pd.DataFrame(predictions)
+    df.to_csv("rf.csv", header=None, index=None)
+
+
+###############################################################################
+if __name__ == "__main__":
+    main()

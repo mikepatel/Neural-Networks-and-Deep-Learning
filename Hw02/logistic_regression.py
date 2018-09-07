@@ -1,7 +1,9 @@
-#! /usr/bin/env python3
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# File: logistic_regression.py
+# Author: mrpatel5 <mrpatel5@ncsu.edu>
 
 # Michael Patel
-# mrpatel5
 # ECE 542
 # Fall 2018
 # Hw02
@@ -26,37 +28,44 @@ from sklearn.linear_model import LogisticRegression
 import numpy as np
 import pandas as pd
 
+
 ###############################################################################
-# load dataset
-mnist = fetch_mldata("MNIST original")
-train_images, test_images, train_labels, test_labels = train_test_split(
-    mnist.data, mnist.target, test_size=1/7.0, random_state=0
-)
+def main():
+    # load dataset
+    mnist = fetch_mldata("MNIST original")
+    train_images, test_images, train_labels, test_labels = train_test_split(
+        mnist.data, mnist.target, test_size=1/7.0, random_state=0
+    )
 
-# explore data
-#print(train_images.shape)  # (60k, 784)
-#print(train_labels[0:5])
+    # explore data
+    #print(train_images.shape)  # (60k, 784)
+    #print(train_labels[0:5])
 
-# instantiate model
-logReg = LogisticRegression(solver="lbfgs")
+    # instantiate model
+    logReg = LogisticRegression(solver="lbfgs")
 
-# training
-logReg.fit(train_images, train_labels)
+    # training
+    logReg.fit(train_images, train_labels)
 
-# predictions
-predictions = logReg.predict(test_images)
-#print(predictions[0:10])
+    # predictions
+    predictions = logReg.predict(test_images)
+    #print(predictions[0:10])
 
-# measuring model performance
-accuracy = logReg.score(test_images, test_labels)
-#print(accuracy)
+    # measuring model performance
+    accuracy = logReg.score(test_images, test_labels)
+    #print(accuracy)
 
-# save predictions to csv
-prob = logReg.predict_proba(test_images)  # prob for each class label
-prob = np.round(prob)  # push prob to 0 or 1
-prob = prob.astype(int)
-#print(type(prob))
-#print(prob[0:10])
+    # save predictions to csv
+    prob = logReg.predict_proba(test_images)  # prob for each class label
+    prob = np.round(prob)  # push prob to 0 or 1
+    prob = prob.astype(int)
+    #print(type(prob))
+    #print(prob[0:10])
 
-df = pd.DataFrame(prob)
-df.to_csv("lr.csv", header=None, index=None)
+    df = pd.DataFrame(prob)
+    df.to_csv("lr.csv", header=None, index=None)
+
+
+###############################################################################
+if __name__ == "__main__":
+    main()
