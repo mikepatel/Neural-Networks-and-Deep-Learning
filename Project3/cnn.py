@@ -15,7 +15,7 @@
 # IMPORTs
 import tensorflow as tf
 from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPool2D, Dense, Dropout, Flatten
+from tensorflow.keras.layers import Conv2D, MaxPool2D, Dense, Dropout, Flatten, BatchNormalization
 from tensorflow.keras.activations import relu, softmax
 from tensorflow.keras.losses import sparse_categorical_crossentropy
 from tensorflow.keras.optimizers import Adam
@@ -24,6 +24,7 @@ from tensorflow.contrib.learn.python.learn.datasets.mnist import extract_images,
 
 import os
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 ################################################################################
 print("TF version: {}".format(tf.__version__))
@@ -65,19 +66,22 @@ train_images = train_images[:50000]  # first 50k
 train_labels = train_labels[:50000]  # first 50k
 
 # printing out shapes of sets
+print("\n##########")
 print("Training Images shape: {}".format(train_images.shape))
 print("Training Labels shape: {}".format(train_labels.shape))
 print("Validation Images shape: {}".format(valid_images.shape))
 print("Validation Labels shape: {}".format(valid_labels.shape))
 print("Testing Images shape: {}".format(test_images.shape))
 print("Testing Labels shape: {}".format(test_labels.shape))
+print("\n##########")
 
 ################################################################################
 # HYPERPARAMETERS
-NUM_EPOCHS = 10
-BATCH_SIZE = 128
+NUM_EPOCHS = 20
+BATCH_SIZE = 64
 LEARNING_RATE = 0.001
-NUM_NEURONS_IN_DENSE_1 = 100
+NUM_NEURONS_IN_DENSE_1 = 200
+DROP_PROB = 0.5
 
 ################################################################################
 # input image dimensions
@@ -92,3 +96,118 @@ test_images = test_images.reshape(-1, img_rows, img_cols, num_channels)
 
 # output dimensions
 num_classes = 10
+
+################################################################################
+# build model
+model = Sequential()
+
+model.add(Conv2D(
+    filters=32,
+    kernel_size=[5, 5],
+    input_shape=input_shape,
+    activation=relu
+))
+
+model.add(BatchNormalization())
+
+model.add(MaxPool2D(
+    pool_size=[2, 2],
+    strides=2
+))
+
+model.add(Conv2D(
+    filters=64,
+    kernel_size=[5, 5],
+    activation=relu
+))
+
+model.add(BatchNormalization())
+
+model.add(MaxPool2D(
+    pool_size=[2, 2],
+    strides=2
+))
+
+model.add(Flatten())
+
+model.add(Dense(
+    units=NUM_NEURONS_IN_DENSE_1,
+    activation=relu
+))
+
+model.add(Dropout(DROP_PROB))
+
+model.add(Dense(
+    units=num_classes,
+    activation=softmax
+))
+
+# configure model for training
+model.compile(
+    loss=sparse_categorical_crossentropy,
+    optimizer=Adam(),
+    metrics=["accuracy"]
+)
+
+model.summary()
+
+################################################################################
+# callbacks for Save weights, Tensorboard
+# creating a new directory for each run using timestamp
+dir = os.path.join(os.getcwd(), datetime.now().strftime("%d-%m-%Y_%H-%M-%S"))
+history_file = dir + "\cnn.h5"
+save_callback = ModelCheckpoint(filepath=history_file, verbose=1)
+tb_callback = TensorBoard(log_dir=dir)
+
+# train model
+history = model.fit(
+    x=train_images,
+    y=train_labels,
+    batch_size=BATCH_SIZE,
+    epochs=NUM_EPOCHS,
+    validation_data=(valid_images, valid_labels),
+    callbacks=[save_callback, tb_callback],
+    verbose=0
+)
+
+#
+history_dict = history.history
+train_accuracy = history_dict["acc"]
+train_loss = history_dict["loss"]
+valid_accuracy = history_dict["val_acc"]
+valid_loss = history_dict["val_loss"]
+
+# predictions / evaluation on test set
+test_loss, test_accuracy = model.evaluate(
+    x=test_images,
+    y=test_labels,
+    verbose=0
+)
+
+################################################################################
+# Visualization and Output
+num_epochs_plot = range(1, len(train_accuracy) + 1)
+
+# Loss curves
+plt.plot(num_epochs_plot, train_loss, "b", label="Training Loss")
+plt.plot(num_epochs_plot, valid_loss, "r", label="Validation Loss")
+plt.title("Loss Curves")
+plt.xlabel("Number of Epochs")
+plt.ylabel("Loss")
+plt.legend()
+plt.show()
+
+# Accuracy curves
+plt.plot(num_epochs_plot, train_accuracy, "b", label="Training Accuracy")
+plt.plot(num_epochs_plot, valid_accuracy, "r", label="Validation Accuracy")
+plt.title("Accuracy Curves")
+plt.xlabel("Number of Epochs")
+plt.ylabel("Accuracy")
+plt.legend()
+plt.show()
+
+# Test loss and accuracy
+print("\n##########")
+print("Test Loss: {}".format(test_loss))
+print("Test Accuracy: {}".format(test_accuracy))
+print("##########")
