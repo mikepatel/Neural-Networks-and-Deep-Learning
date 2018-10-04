@@ -16,7 +16,7 @@
 import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPool2D, Dense, Dropout, Flatten, BatchNormalization
-from tensorflow.keras.activations import relu, softmax
+from tensorflow.keras.activations import relu, softmax, tanh, sigmoid
 from tensorflow.keras.losses import sparse_categorical_crossentropy
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard
@@ -57,6 +57,14 @@ def load_mnist_data():
 ################################################################################
 # loading dataset
 (train_images, train_labels), (test_images, test_labels) = load_mnist_data()
+
+'''
+print("\n@@@@@@@@@@@@@@@@@@")
+print(train_labels[:10])
+print(train_labels[5555:5565])
+print(test_labels[:10])
+print(test_labels[8888:8898])
+'''
 
 # creating validation set from training set
 # validation set size: 10k
