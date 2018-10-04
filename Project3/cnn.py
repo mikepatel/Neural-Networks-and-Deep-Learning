@@ -88,7 +88,7 @@ print("\n##########")
 NUM_EPOCHS = 20
 BATCH_SIZE = 64
 LEARNING_RATE = 0.001
-NUM_NEURONS_IN_DENSE_1 = 200
+NUM_NEURONS_IN_DENSE_1 = 128
 DROP_PROB = 0.5
 
 ################################################################################
@@ -113,6 +113,7 @@ model.add(Conv2D(
     filters=32,
     kernel_size=[5, 5],
     input_shape=input_shape,
+    padding="same",
     activation=relu
 ))
 
@@ -126,6 +127,7 @@ model.add(MaxPool2D(
 model.add(Conv2D(
     filters=64,
     kernel_size=[5, 5],
+    padding="same",
     activation=relu
 ))
 
@@ -216,6 +218,6 @@ plt.show()
 
 # Test loss and accuracy
 print("\n##########")
-print("Test Loss: {}".format(test_loss))
-print("Test Accuracy: {}".format(test_accuracy))
+print("Test Loss: {:.4f}".format(test_loss))
+print("Test Accuracy: {:.4f}".format(test_accuracy))
 print("##########")
