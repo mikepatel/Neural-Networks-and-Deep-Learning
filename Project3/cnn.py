@@ -185,7 +185,7 @@ model.summary()
 ################################################################################
 # callbacks for Save weights, Tensorboard
 # creating a new directory for each run using timestamp
-folder = os.path.join(os.getcwd(), datetime.now().strftime("%d-%m-%Y_%H-%M-%S"))
+folder = os.path.join(os.getcwd(), datetime.now().strftime("%d-%m-%Y_%H-%M-%S"), str(ACTIV_FN))
 history_file = folder + "\cnn_" + str(ACTIV_FN) + ".h5"
 save_callback = ModelCheckpoint(filepath=history_file, verbose=1)
 tb_callback = TensorBoard(log_dir=folder)
