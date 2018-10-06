@@ -9,7 +9,7 @@
 # 10 class labesl (digits 0-9)
 
 # Notes:
-
+#   - validation_split: Float between 0 and 1. Fraction of the training data to be used as validation data
 
 ################################################################################
 # IMPORTs
@@ -23,7 +23,9 @@ from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard
 from tensorflow.contrib.learn.python.learn.datasets.mnist import extract_images, extract_labels
 
 import os
+import numpy as np
 from datetime import datetime
+import pandas as pd
 import matplotlib.pyplot as plt
 
 ################################################################################
@@ -55,6 +57,18 @@ def load_mnist_data():
 
 
 ################################################################################
+def get_activ_fn(s):
+    if s == "relu":
+        return relu
+    elif s == "softmax":
+        return softmax
+    elif s == "tanh":
+        return tanh
+    elif s == "sigmoid":
+        return sigmoid
+
+
+################################################################################
 # loading dataset
 (train_images, train_labels), (test_images, test_labels) = load_mnist_data()
 
@@ -67,13 +81,16 @@ print(test_labels[8888:8898])
 '''
 
 # creating validation set from training set
-# validation set size: 10k
-valid_images = train_images[50000:]  # last 10k: 50k-60k
-valid_labels = train_labels[50000:]  # last 10k: 50k-60k
-train_images = train_images[:50000]  # first 50k
-train_labels = train_labels[:50000]  # first 50k
+# validation set size:
+valid_set_size = 8000
+split = len(train_images) - valid_set_size
+valid_images = train_images[split:]  # last
+valid_labels = train_labels[split:]  # last
+train_images = train_images[:split]  # first
+train_labels = train_labels[:split]  # first
 
 # printing out shapes of sets
+'''
 print("\n##########")
 print("Training Images shape: {}".format(train_images.shape))
 print("Training Labels shape: {}".format(train_labels.shape))
@@ -82,14 +99,17 @@ print("Validation Labels shape: {}".format(valid_labels.shape))
 print("Testing Images shape: {}".format(test_images.shape))
 print("Testing Labels shape: {}".format(test_labels.shape))
 print("\n##########")
+'''
 
 ################################################################################
-# HYPERPARAMETERS
+# HYPERPARAMETERS AND DESIGN CHOICES
 NUM_EPOCHS = 20
 BATCH_SIZE = 64
 LEARNING_RATE = 0.001
 NUM_NEURONS_IN_DENSE_1 = 128
 DROP_PROB = 0.5
+ACTIV_FN = "relu"
+activation_fn = get_activ_fn(ACTIV_FN)
 
 ################################################################################
 # input image dimensions
@@ -114,7 +134,7 @@ model.add(Conv2D(
     kernel_size=[5, 5],
     input_shape=input_shape,
     padding="same",
-    activation=relu
+    activation=activation_fn
 ))
 
 model.add(BatchNormalization())
@@ -128,7 +148,7 @@ model.add(Conv2D(
     filters=64,
     kernel_size=[5, 5],
     padding="same",
-    activation=relu
+    activation=activation_fn
 ))
 
 model.add(BatchNormalization())
@@ -142,7 +162,7 @@ model.add(Flatten())
 
 model.add(Dense(
     units=NUM_NEURONS_IN_DENSE_1,
-    activation=relu
+    activation=activation_fn
 ))
 
 model.add(Dropout(DROP_PROB))
@@ -153,6 +173,7 @@ model.add(Dense(
 ))
 
 # configure model for training
+# i.e. define loss function, optimizer, training metrics
 model.compile(
     loss=sparse_categorical_crossentropy,
     optimizer=Adam(),
@@ -164,10 +185,10 @@ model.summary()
 ################################################################################
 # callbacks for Save weights, Tensorboard
 # creating a new directory for each run using timestamp
-dir = os.path.join(os.getcwd(), datetime.now().strftime("%d-%m-%Y_%H-%M-%S"))
-history_file = dir + "\cnn.h5"
+folder = os.path.join(os.getcwd(), datetime.now().strftime("%d-%m-%Y_%H-%M-%S"))
+history_file = folder + "\cnn_" + str(ACTIV_FN) + ".h5"
 save_callback = ModelCheckpoint(filepath=history_file, verbose=1)
-tb_callback = TensorBoard(log_dir=dir)
+tb_callback = TensorBoard(log_dir=folder)
 
 # train model
 history = model.fit(
@@ -176,6 +197,7 @@ history = model.fit(
     batch_size=BATCH_SIZE,
     epochs=NUM_EPOCHS,
     validation_data=(valid_images, valid_labels),
+    shuffle=True,
     callbacks=[save_callback, tb_callback],
     verbose=0
 )
@@ -187,12 +209,25 @@ train_loss = history_dict["loss"]
 valid_accuracy = history_dict["val_acc"]
 valid_loss = history_dict["val_loss"]
 
-# predictions / evaluation on test set
+# evaluation on test set
 test_loss, test_accuracy = model.evaluate(
     x=test_images,
     y=test_labels,
     verbose=0
 )
+
+# predictions with test set
+predictions = model.predict_proba(
+    x=test_images,
+    batch_size=None,
+    verbose=0
+)
+
+# save test set results to csv
+predictions = np.round(predictions)
+predictions = predictions.astype(int)
+df = pd.DataFrame(predictions)
+df.to_csv("mnist.csv", header=None, index=None)
 
 ################################################################################
 # Visualization and Output
