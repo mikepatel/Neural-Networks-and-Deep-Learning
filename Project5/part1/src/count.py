@@ -38,18 +38,44 @@ def count_0_in_seq(input_seq, count_type):
 
     if count_type == 'task2':
         # Count number of '0' after the first '2' in the sequence.
-        print('Not implemented.')
 
-        count_num = 0
+        # create LSTM cell
+        cell = LSTMcell(in_dim=10, out_dim=2)
+
+        # assign parameters
+        assign.assign_weight_count_task2(cell, in_dim=10, out_dim=2)
+
+        # initialize first state
+        prev_state = [0., 0.]
+
+        # read input sequence one-by-one to count the digits
+        for idx, d in enumerate(input_seq):
+            prev_state = cell.run_step([d], prev_state=prev_state)
+
+        #count_num = int(np.squeeze(prev_state))
+        count_num = int(prev_state[0][0])
         return count_num
 
     if count_type == 'task3':
         # Count number of '0' in the sequence when receive '2', but erase
         # the counting when receive '3', and continue to count '0' from 0
         # until receive another '2'.
-        print('Not implemented.')
 
-        count_num = 0
+        # create LSTM cell
+        cell = LSTMcell(in_dim=10, out_dim=2)
+
+        # assign parameters
+        assign.assign_weight_count_task3(cell, in_dim=10, out_dim=2)
+
+        # initialize first state
+        prev_state = [0., 0.]
+
+        # read input sequence one-by-one to count the digits
+        for idx, d in enumerate(input_seq):
+            prev_state = cell.run_step([d], prev_state=prev_state)
+
+        #count_num = int(np.squeeze(prev_state))
+        count_num = int(prev_state[0][0])
         return count_num
 
 
