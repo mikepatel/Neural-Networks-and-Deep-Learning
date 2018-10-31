@@ -110,6 +110,7 @@ def build_model(vocabulary_size):
     model = Sequential()
 
     # Layer 1: Embedding layer
+    # convert words to vectors
     model.add(Embedding(
         input_dim=vocabulary_size,  # size of vocabulary
         output_dim=,  # dimension of dense embedding
@@ -122,13 +123,13 @@ def build_model(vocabulary_size):
     if is_use_GPU:  # use tf.keras.layers.CuDNNLSTM
         model.add(CuDNNLSTM(
             units=,
-            return_sequences=True  # return last output
+            return_sequences=True  # return all outputs
         ))
 
     else:  # use tf.keras.layers.LSTM
         model.add(LSTM(
             units=,
-            return_sequences=True  # return last output, also needed to use TimeDistributed wrapper
+            return_sequences=True  # return all outputs, also needed to use TimeDistributed wrapper
         ))
 
     #model.add(BatchNormalization())
@@ -151,7 +152,7 @@ def build_model(vocabulary_size):
     model.compile(
         loss=categorical_crossentropy,
         optimizer=Adam(),
-        metrics=["accuracy"]
+        metrics=["categorical_accuracy"]
     )
 
     model.summary()
