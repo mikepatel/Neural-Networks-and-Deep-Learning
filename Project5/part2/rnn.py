@@ -1,110 +1,46 @@
-# RNN with LSTM units for language modelling
-# Text generation: predict next words given a previous history
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# File: rnn.py
+# Authors: Michael Patel <mrpatel5@ncsu.edu>, Shahryar Rashid <srashid3@ncsu.edu>, Vijay Mohan <vmohan2@ncsu.edu>
 
-# dataset: PTB (Penn Tree Bank)
-# relatively small and fast to train
+'''
+RNN with LSTM Units for Language Modeling
+Predicts Next Words Given a History
+Dataset: Penn Tree Bank (PTB)
+Relatively Small and Fast to Train
+Notes
+- Recurrent Batch Normalization: https://arxiv.org/pdf/1603.09025.pdf
+- Tutorial: http://adventuresinmachinelearning.com/keras-lstm-tutorial/
+- <eos> = end of sentence characters
+'''
 
-# Notes:
-#   - http://adventuresinmachinelearning.com/keras-lstm-tutorial/
-#   - <eos> = end of sentence characters
-#   - Recurrent Batch Normalization (https://arxiv.org/pdf/1603.09025.pdf)
-#   - text is already tokenized
-
-################################################################################
-# IMPORTs
-import os
-import numpy as np
 import collections
+import numpy as np
+import tensorflow as tf
+import os
 from datetime import datetime
 import matplotlib.pyplot as plt
-
-import tensorflow as tf
+from tensorflow.keras.utils import to_categorical
 from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Embedding, Dense, Dropout, BatchNormalization, \
-    CuDNNLSTM, LSTM, TimeDistributed
+from tensorflow.keras.layers import Embedding, LSTM, CuDNNLSTM, Dropout, Dense
 from tensorflow.keras.activations import softmax
 from tensorflow.keras.losses import categorical_crossentropy
-from tensorflow.keras.optimizers import Adam, RMSprop
+from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard
+from tensorflow.keras.models import load_model
 
-################################################################################
-# GPU check
+# Check for GPU
 GPU = tf.test.is_gpu_available()
 
-################################################################################
-# PREPROCESSING
-# one-hot encoding of chars/words
-# dataset text is already tokenized, so just split sentences
-
-
-# split sentence tokens
-# replace newlines w/ eos
-def split_tokens(file):
-    with tf.gfile.GFile(file, "r") as f:
-        return f.read().replace("\n", "<eos>").split()
-
-
-# build vocab dictionary
-def build_vocab(file):
-    tokens = split_tokens(file)
-
-    counter = collections.Counter(tokens)
-
-    # sort by most common char
-    count_pairs = sorted(counter.items(), key=lambda x: (-x[1], x[0]))
-
-    words, _ = list(zip(*count_pairs))
-    word_to_id = dict(zip(words, range(len(words))))
-
-    return word_to_id
-
-
-# convert text to int
-def text_to_ids(file, word_to_id):
-    data = split_tokens(file)
-    return [word_to_id[word] for word in data if word in word_to_id]
-
-
-# load dataset
-def load_data(file):
-    data_filepath = os.path.join(os.getcwd(), "data")
-    train_data_filepath = os.path.join(data_filepath, file)
-
-    # build complete vocabulary
-    # dictionary w/ key=text, value=int
-    # sorted by most common char first
-    word_to_id = build_vocab(train_data_filepath)
-    #print(word_to_id)
-
-    # convert text -> list of ints
-    # train_data will be list of ints
-    train_data = text_to_ids(train_data_filepath, word_to_id)
-
-    # limit to most common words (10k)
-    vocabulary_size = len(word_to_id)
-    #print("VOCAB SIZE: " + str(vocabulary_size))
-
-    # reversed in that key is int and value is text
-    # reversed (key, value) pair of word_to_id
-    # use predicted int to predict word
-    reversed_dictionary = dict(zip(word_to_id.values(), word_to_id.keys()))
-    #print(reversed_dictionary)
-    #print(" ".join([reversed_dictionary[x] for x in train_data[:10]]))
-
-    return train_data, vocabulary_size, reversed_dictionary
-
-
-################################################################################
-# HYPERPARAMETERS
+# HYPERPARAMETERS and CONSTANTS
+C_OR_W = "w"
 NUM_EPOCHS = 50
-BATCH_SIZE = 16
-DROPOUT_PROB = 0.5
+BATCH_SIZE = 32
+DROPOUT_PROB = 0.3
 HIDDEN_LAYER = 512
-NUM_WORDS = 30
+NUM_STEPS = 30
 
 
-################################################################################
-# INPUT PIPELINE FOR FEEDING MODEL
 class Generator():
     def __init__(self, data, num_steps, batch_size, vocab_size):
         self.data = data
@@ -127,46 +63,59 @@ class Generator():
                 x[i, :] = self.data[self.index:self.index + self.num_steps]
                 # slice num_steps offet by one and one hot encode y
                 y_copy = self.data[self.index + 1:self.index + self.num_steps + 1]
-                y[i, :, :] = tf.keras.utils.to_categorical(y_copy, num_classes=self.vocab_size)
+                y[i, :, :] = to_categorical(y_copy, num_classes=self.vocab_size)
                 self.index += self.num_steps
             yield x, y
 
 
-################################################################################
-# BUILD AND CONFIGURE MODEL
-def build_model(vocabulary_size):
+def load_data(train_filename, val_filename):
+    def __split_tokens(file):
+        # Replace Newlines with <eos> and Split Tokens
+        with open(file, "r") as f:
+            return f.read().replace("\n", "<eos>").split()
+
+    def __build_vocab(file):
+        # Build Vocabulary Dictionary Sorted by Most Common Char (key=text, value=int)
+        tokens = __split_tokens(file)
+
+        counter = collections.Counter(tokens)
+        most_frequent = sorted(counter.items(), key=lambda x: -x[1])
+
+        words, frequency = list(zip(*most_frequent))
+        return dict(zip(words, range(len(words))))
+
+    def __id_conversion(file, vocab):
+        # Convert Text to Int
+        tokens = __split_tokens(file)
+        return [vocab[token] for token in tokens if token in vocab]
+
+    # filepaths
+    data_filepath = os.path.join(os.getcwd(), "data")
+    train_filepath = os.path.join(data_filepath, train_filename)
+    val_filepath = os.path.join(data_filepath, val_filename)
+
+    vocab = __build_vocab(train_filepath)
+    train_data = __id_conversion(train_filepath, vocab)
+    val_data = __id_conversion(val_filepath, vocab)
+
+    vocab_size = len(vocab)
+    reversed_vocab = dict(zip(vocab.values(), vocab.keys()))
+
+    return train_data, val_data, vocab, vocab_size
+
+
+def build_model(vocab_size):
+    # Define Sequential Model (Linear Stack of Layers)
     model = Sequential()
 
-    # Layer 1: Embedding layer
-    # convert words to word vectors
-    # map integer indices -> dense vectors
+    # Embedding Layer
     model.add(Embedding(
-        input_dim=vocabulary_size,  # size of vocabulary (number of tokens)
-        output_dim=HIDDEN_LAYER  # dimension of dense embedding
-        #input_length=  # length of input sequence
+        input_dim=vocab_size,
+        output_dim=HIDDEN_LAYER,
+        input_length=NUM_STEPS
     ))
 
-    #model.add(BatchNormalization())
-
-    # Layer 2: LSTM
-    if GPU:  # use tf.keras.layers.CuDNNLSTM
-        model.add(CuDNNLSTM(
-            units=HIDDEN_LAYER,
-            return_sequences=True  # return all outputs
-        ))
-
-    else:  # use tf.keras.layers.LSTM
-        model.add(LSTM(
-            units=HIDDEN_LAYER,
-            return_sequences=True  # return all outputs, also needed to use TimeDistributed wrapper
-        ))
-
-    #model.add(BatchNormalization())
-
-    # Layer 3: Dropout
-    model.add(Dropout(rate=DROPOUT_PROB))
-
-    #
+    # LSTM Layer (use CuDNNLSTM for GPUs)
     if GPU:
         model.add(CuDNNLSTM(
             units=HIDDEN_LAYER,
@@ -178,40 +127,16 @@ def build_model(vocabulary_size):
             return_sequences=True
         ))
 
-    model.add(Dropout(rate=DROPOUT_PROB))
+    # Dropout Layer
+    #model.add(Dropout(rate=DROPOUT_PROB))
 
-    model.add(Dropout(rate=DROPOUT_PROB))
-
-    #
-    if GPU:
-        model.add(CuDNNLSTM(
-            units=HIDDEN_LAYER,
-            return_sequences=True
-        ))
-    else:
-        model.add(LSTM(
-            units=HIDDEN_LAYER,
-            return_sequences=True
-        ))
-
-    # Layer 4: Dense
-    '''
-    # TimeDistributed layer = wrapper that applies a layer to every temporal slice of an input
-    # input must be at least 3D, output will be 3D
-    model.add(TimeDistributed(
-        Dense(
-            units=vocabulary_size,
-            activation=softmax
-        )
-    ))
-    '''
+    # Dense Layer
     model.add(Dense(
-        units=vocabulary_size,
+        units=vocab_size,
         activation=softmax
     ))
 
-    # configure model for training
-    # i.e. define loss function, optimizer, training metrics
+    # Configure Training (Loss Function, Optimizer, Training Metrics)
     model.compile(
         loss=categorical_crossentropy,
         optimizer=Adam(),
@@ -222,53 +147,97 @@ def build_model(vocabulary_size):
     return model
 
 
-################################################################################
-# TRAIN MODEL
-def train_model(model, train_data, vocabulary_size, filename):
-    # callbacks for saving weights, Tensorboard
-    # create a new directory for each run using timestamp
-    folder = os.path.join(os.getcwd(), datetime.now().strftime("%d-%m-%Y_%H-%M-%S"))
-    print("FOLDER: " + folder)
-    history_file = str(folder + "\checkpoint_" + filename + ".h5")
-    print("HISTORY FILE: " + history_file)
-    save_callback = ModelCheckpoint(filepath=history_file, verbose=1)
-    tb_callback = TensorBoard(log_dir=folder)
-
+def train_model(model, training_data, val_data, vocab_size, filename):
+    # Create Generator for Batches
     train_generator = Generator(
-        data=train_data,
-        num_steps=NUM_WORDS,
+        data=training_data,
+        num_steps=NUM_STEPS,
         batch_size=BATCH_SIZE,
-        vocab_size=vocabulary_size
+        vocab_size=vocab_size
     )
 
+    val_generator = Generator(
+        data=val_data,
+        num_steps=NUM_STEPS,
+        batch_size=BATCH_SIZE,
+        vocab_size=vocab_size
+    )
+
+    # Create Checkpoint
+    folder = os.path.join(os.getcwd(), datetime.now().strftime("%d-%m-%Y_%H-%M-%S"))
+    history_file = str(folder + "\checkpoint_" + filename + ".h5")
+    checkpoint = ModelCheckpoint(filepath=history_file, verbose=1)
+    tb_callback = TensorBoard(log_dir=folder)
+
+    # Fit Model
     history = model.fit_generator(
-        generator=train_generator.get_batch(),  # Python iterator used to extract batches
-        steps_per_epoch=len(train_data) // (BATCH_SIZE * NUM_WORDS),
+        generator=train_generator.get_batch(),
+        steps_per_epoch=(len(training_data) // (BATCH_SIZE * NUM_STEPS)),
         epochs=NUM_EPOCHS,
-        callbacks=[save_callback, tb_callback],
-        verbose=1
+        callbacks=[checkpoint, tb_callback],
+        validation_data=val_generator.get_batch(),
+        validation_steps=len(val_data) // BATCH_SIZE // NUM_STEPS
     )
 
     history_dict = history.history
     train_accuracy = history_dict["acc"]
     train_loss = history_dict["loss"]
-    valid_accuracy = history_dict["val_acc"]
-    valid_loss = history_dict["val_loss"]
+    validation_accuracy = history_dict["val_acc"]
+    validation_loss = history_dict["val_loss"]
 
-    return train_accuracy, train_loss, valid_accuracy, valid_loss
+    return train_accuracy, train_loss, validation_accuracy, validation_loss, folder, history_file
 
 
-################################################################################
-#filename = "ptb.char.train.txt"
-filename = "ptb.train.txt"
+def generate_sequence(saved_model, vocab, vocab_size, length=100):
+    model = load_model(saved_model)
+    generator = Generator(
+        data=training_data,
+        num_steps=NUM_STEPS,
+        batch_size=1,
+        vocab_size=vocab_size
+    )
 
-# load dataset
-train_data, vocabulary_size, reversed_dictionary = load_data(filename)
+    sequence = ""
+    for i in range(length):
+        data = next(generator.get_batch())
+        output = model.predict(data[0])
+        prediction = np.argmax(output[:, NUM_STEPS - 1, :])
+        sequence += vocab[prediction] + " "
+    return sequence
 
-# build, train model
-model = build_model(vocabulary_size)
-train_accuracy, train_loss, valid_accuracy, valid_loss = train_model(model, train_data, vocabulary_size, filename)
 
-################################################################################
-# OUTPUT and VISUALIZATION
+##
+if C_OR_W == "c":  # character-based
+    title = "Character-based"
+    train_filename = "ptb.char.train.txt"
+    val_filename = "ptb.char.valid.txt"
+else:  # word-based
+    title = "Word-based"
+    train_filename = "ptb.train.txt"
+    val_filename = "ptb.valid.txt"
 
+training_data, val_data, vocab, vocab_size = load_data(train_filename, val_filename)
+model = build_model(vocab_size)
+
+train_accuracy, train_loss, val_accuracy, val_loss, folder, history_file = train_model(
+    model, training_data, val_data, vocab_size, train_filename
+)
+
+sequence = generate_sequence(history_file, vocab, vocab_size)
+print("Predicted Sequence: {0}".format(sequence))
+
+# perplexity
+train_perplexity = np.exp(train_loss)
+val_perplexity = np.exp(val_loss)
+
+num_epochs_plot = range(1, NUM_EPOCHS+1, 1)
+
+# plot perplexity
+plt.plot(num_epochs_plot, train_perplexity, "b", label="Training Perplexity")
+plt.plot(num_epochs_plot, val_perplexity, "r", label="Validation Perplexity")
+plt.title("Perplexity: " + title)
+plt.xlabel("Number of Epochs")
+plt.ylabel("Perplexity")
+plt.legend()
+plt.savefig(os.path.join(folder, "perplexity_" + title + ".png"))
+plt.show()
