@@ -101,7 +101,7 @@ def load_data(train_filename, val_filename):
     vocab_size = len(vocab)
     reversed_vocab = dict(zip(vocab.values(), vocab.keys()))
 
-    return train_data, val_data, vocab, vocab_size
+    return train_data, val_data, vocab, vocab_size, reversed_vocab
 
 
 def build_model(vocab_size):
@@ -188,7 +188,7 @@ def train_model(model, training_data, val_data, vocab_size, filename):
     return train_accuracy, train_loss, validation_accuracy, validation_loss, folder, history_file
 
 
-def generate_sequence(saved_model, vocab, vocab_size, length=100):
+def generate_sequence(saved_model, vocab, vocab_size, reversed_vocab, length=100):
     model = load_model(saved_model)
     generator = Generator(
         data=training_data,
@@ -202,7 +202,7 @@ def generate_sequence(saved_model, vocab, vocab_size, length=100):
         data = next(generator.get_batch())
         output = model.predict(data[0])
         prediction = np.argmax(output[:, NUM_STEPS - 1, :])
-        sequence += vocab[prediction] + " "
+        sequence += reversed_vocab[prediction] + " "
     return sequence
 
 
@@ -216,23 +216,28 @@ else:  # word-based
     train_filename = "ptb.train.txt"
     val_filename = "ptb.valid.txt"
 
-training_data, val_data, vocab, vocab_size = load_data(train_filename, val_filename)
+# load dataset
+training_data, val_data, vocab, vocab_size, reversed_vocab = load_data(train_filename, val_filename)
+
+# instantiate model
 model = build_model(vocab_size)
 
+# train model
 train_accuracy, train_loss, val_accuracy, val_loss, folder, history_file = train_model(
     model, training_data, val_data, vocab_size, train_filename
 )
 
-sequence = generate_sequence(history_file, vocab, vocab_size)
-print("Predicted Sequence: {0}".format(sequence))
+# generated text
+sequence = generate_sequence(history_file, vocab, vocab_size, reversed_vocab)
+print("\n##### Predicted Sequence #####\n")
+print(sequence)
 
 # perplexity
 train_perplexity = np.exp(train_loss)
 val_perplexity = np.exp(val_loss)
 
-num_epochs_plot = range(1, NUM_EPOCHS+1, 1)
-
 # plot perplexity
+num_epochs_plot = range(1, NUM_EPOCHS+1, 1)
 plt.plot(num_epochs_plot, train_perplexity, "b", label="Training Perplexity")
 plt.plot(num_epochs_plot, val_perplexity, "r", label="Validation Perplexity")
 plt.title("Perplexity: " + title)
