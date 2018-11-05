@@ -33,7 +33,7 @@ from tensorflow.keras.models import load_model
 GPU = tf.test.is_gpu_available()
 
 # HYPERPARAMETERS and CONSTANTS
-C_OR_W = "w"
+C_OR_W = "c"
 NUM_EPOCHS = 50
 BATCH_SIZE = 32
 DROPOUT_PROB = 0.3
@@ -235,6 +235,10 @@ print(sequence)
 # perplexity
 train_perplexity = np.exp(train_loss)
 val_perplexity = np.exp(val_loss)
+
+print("\n##### Final Perplexity Values: " + title + " #####")
+print("Training Perplexity: {}".format(train_perplexity[-1]))
+print("Validation Perplexity: {}".format(val_perplexity[-1]))
 
 # plot perplexity
 num_epochs_plot = range(1, NUM_EPOCHS+1, 1)
