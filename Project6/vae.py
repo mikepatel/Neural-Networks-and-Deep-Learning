@@ -19,7 +19,8 @@ import numpy
 import tensorflow as tf
 from tensorflow.contrib.learn.python.learn.datasets.mnist import extract_images, extract_labels
 from tensorflow.keras import Sequential, Model
-from tensorflow.keras.layers import Dense, Input, Lambda
+from tensorflow.keras.layers import Dense, Input, Lambda, Conv2D, Flatten \
+    Dropout, BatchNormalization
 from tensorflow.keras.activations import relu
 from tensorflow.keras.losses import
 from tensorflow.keras.optimizers import Adam
@@ -53,12 +54,47 @@ def load_data():
 # HYPERPARAMETERS and DESIGN CHOICES
 BATCH_SIZE = 64
 NUM_EPOCHS = 10
+LATENT_DIM = 2  # 2-dimensional to construct plane
 
+# MNIST dimensions
+num_rows = 28
+num_cols = 28
+num_channels = 1
 
 ################################################################################
 # build encoder
 def build_encoder():
     m = Sequential()
+
+    m.add(Conv2D(
+        filters=32,
+        kernel_size=[4, 4],
+        input_shape=(num_rows, num_cols, num_channels),
+        padding="same",
+        activation=relu
+    ))
+
+    m.add(Conv2D(
+        filters=64,
+        kernel_size=[4, 4],
+        strides=2,
+        padding="same",
+        activation=relu
+    ))
+
+    m.add(Conv2D(
+        filters=64,
+        kernel_size=[4, 4],
+        padding="same",
+        activation=relu
+    ))
+
+    m.add(Conv2D(
+        filters=64,
+        kernel_size=[4, 4],
+        padding="same",
+        activation=relu
+    ))
 
     return m
 
@@ -72,6 +108,9 @@ def build_decoder():
 
 
 ################################################################################
+# get data
+# instantiate model
+
 # TRAINING
 
 ################################################################################
