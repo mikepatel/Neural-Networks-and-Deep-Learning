@@ -3,7 +3,7 @@ Homeworks and projects related to ECE 542
 
 * Final Project: [Text 2 Image Generation](https://github.com/mikepatel/Text-2-Image-GAN)
 
-* Hw02: Logistic [Regression and Random Forest](https://github.com/mikepatel/Neural-Networks-and-Deep-Learning/tree/master/Hw02)
+* Hw02: [Logistic Regression and Random Forest](https://github.com/mikepatel/Neural-Networks-and-Deep-Learning/tree/master/Hw02)
 
 * Project 1: [Backpropagation](https://github.com/mikepatel/Neural-Networks-and-Deep-Learning/tree/master/project1)
 
